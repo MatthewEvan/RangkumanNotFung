@@ -271,3 +271,433 @@ Perhatikan bahwa yang dikompilasi adalah **program pemakai + realisasi mesin** (
 - Pola standar: `start` → `while (cc != MARK) { proses; adv }` → terminasi. Kalau butuh informasi dari langkah sebelumnya, simpan di variabel lokal.
 
 Coba kerjakan Hitung-LE sendiri dulu, tanpa melihat solusi di dokumen persiapan. Kalau sudah, tempel kodenya ke sini dan saya cek. Setelah itu, kasih tahu saya kalau mau lanjut ke linked list.
+
+
+# Pembahasan Latihan Soal
+# K0: Hitung-LE
+
+### Soal
+
+Diberikan sebuah pita karakter yang diakhiri MARK `'.'`. Hitunglah banyaknya **pasangan huruf `L` yang langsung diikuti huruf `E`** pada pita. Pita kosong menghasilkan 0.
+
+Program **hanya boleh** memakai `start`, `adv`, `cc`, dan `MARK` dari `mesinkar.h`.
+
+**Input:** satu pita karakter yang diakhiri `.`
+**Output:** satu bilangan bulat, yaitu banyaknya pasangan `LE`, diikuti newline.
+
+| Input | Output | Penjelasan |
+|---|---|---|
+| `.` | `0` | pita kosong |
+| `LE.` | `1` | |
+| `ELLE.` | `1` | hanya `L` kedua yang diikuti `E` |
+| `LLE LE EL.` | `2` | `LLE` (satu) dan `LE` (satu). `EL` bukan `LE` |
+| `L E.` | `0` | ada spasi di antara `L` dan `E`, jadi tidak langsung |
+| `LEE LLLE.` | `2` | |
+
+### Pembahasan
+
+**Masalah utamanya:** jendela mesin hanya menampilkan satu karakter. Saat `cc == 'E'`, kamu tidak bisa melihat karakter sebelumnya. Mesin tidak bisa mundur.
+
+**Ide:** simpan sendiri karakter sebelumnya di variabel lokal `prev`. Di setiap langkah, cek pasangan `(prev, cc)`.
+
+```c
+#include <stdio.h>
+#include "mesinkar.h"
+
+int main() {
+    int ctr = 0;
+    char prev = MARK;          /* nilai awal: pasti bukan 'L' */
+    start();
+    while (cc != MARK) {
+        if (prev == 'L' && cc == 'E') {
+            ctr++;
+        }
+        prev = cc;             /* cc sekarang jadi "sebelumnya" di langkah berikut */
+        adv();
+    }
+    printf("%d\n", ctr);
+    return 0;
+}
+```
+
+**Kenapa `prev` diawali `MARK`?** Saat memproses karakter pertama, belum ada karakter sebelumnya. `prev` harus diisi nilai yang **pasti bukan `'L'`**, supaya pita `E...` tidak salah terhitung. `MARK` adalah pilihan aman, karena MARK tidak pernah muncul di tengah pita.
+
+**Kenapa `prev = cc` ditulis sebelum `adv()`?** Setelah `adv()`, nilai `cc` lama sudah hilang. Jadi kalau mau disimpan, harus disimpan sebelum `adv()`.
+
+**Jejak `LLE LE EL.`:**
+
+| `cc` | `prev` saat dicek | `LE`? | `ctr` |
+|---|---|---|---|
+| `L` | `.` | ✘ | 0 |
+| `L` | `L` | ✘ | 0 |
+| `E` | `L` | ✔ | 1 |
+| ` ` | `E` | ✘ | 1 |
+| `L` | ` ` | ✘ | 1 |
+| `E` | `L` | ✔ | 2 |
+| ` ` | `E` | ✘ | 2 |
+| `E` | ` ` | ✘ | 2 |
+| `L` | `E` | ✘ | 2 |
+| `.` | | loop berhenti | **2** |
+
+**Pola yang bisa dipakai ulang:** kalau soal mesin karakter butuh informasi dari langkah sebelumnya, simpan di variabel. Teknik ini berlaku untuk mendeteksi pasangan, menghitung kemunculan berturut-turut, dan sejenisnya.
+
+---
+
+# K1: Hitung karakter dan vokal
+
+### Soal
+
+Diberikan sebuah pita karakter yang diakhiri MARK. Hitunglah:
+1. **banyaknya karakter** sebelum MARK (spasi ikut dihitung), dan
+2. **banyaknya huruf vokal** (`a`, `i`, `u`, `e`, `o`), **tanpa membedakan huruf besar dan kecil**.
+
+**Input:** satu pita karakter yang diakhiri `.`
+**Output:** dua bilangan bulat dipisah spasi: `<jumlah karakter> <jumlah vokal>`, diikuti newline.
+
+| Input | Output | Penjelasan |
+|---|---|---|
+| `Halo Dunia.` | `10 5` | 10 karakter termasuk spasi. Vokal: a, o, u, i, a |
+| `.` | `0 0` | pita kosong |
+| `AIUEO xyz.` | `9 5` | huruf besar juga dihitung sebagai vokal |
+
+### Pembahasan
+
+Ini soal paling langsung: satu kali traversal dengan **dua penghitung sekaligus**.
+
+```c
+#include <stdio.h>
+#include "mesinkar.h"
+
+static boolean isVokal(char c) {
+    if (c >= 'A' && c <= 'Z') {
+        c = c - 'A' + 'a';            /* ubah huruf besar jadi huruf kecil */
+    }
+    return c == 'a' || c == 'i' || c == 'u' || c == 'e' || c == 'o';
+}
+
+int main() {
+    int total = 0, vokal = 0;
+    start();
+    while (cc != MARK) {
+        total++;                      /* setiap karakter dihitung */
+        if (isVokal(cc)) {
+            vokal++;                  /* vokal dihitung terpisah */
+        }
+        adv();
+    }
+    printf("%d %d\n", total, vokal);
+    return 0;
+}
+```
+
+**Trik huruf besar ke kecil:** `c - 'A' + 'a'`. Di tabel ASCII, huruf besar dan kecil sama-sama berurutan. `c - 'A'` memberi posisi huruf di alfabet (A=0, B=1, ...), lalu `+ 'a'` mengubahnya ke huruf kecil di posisi yang sama. Contoh: `'E' - 'A' + 'a'` = `4 + 'a'` = `'e'`. Fungsi `tolower` dari `<ctype.h>` juga bisa dipakai, kalau soal mengizinkan.
+
+**Kenapa dibuat fungsi `isVokal` terpisah?** Supaya `main` tetap bersih dan polanya terlihat jelas. `static` membuat fungsi ini hanya terlihat di file ini, sama seperti `static FILE *pita` di `mesinkar.c`.
+
+**Hati-hati:** "karakter sebelum MARK" berarti **spasi ikut dihitung**. `MARK` sendiri tidak dihitung, karena loop berhenti saat `cc == MARK`.
+
+---
+
+# K2: Statistik kata (mesin kata)
+
+### Soal
+
+Diberikan sebuah pita berisi kata-kata yang dipisahkan satu atau lebih spasi, diakhiri MARK. Gunakan **mesin kata** untuk mencetak:
+1. **jumlah kata**,
+2. **kata terpanjang**. Jika ada beberapa kata dengan panjang sama, ambil yang **muncul pertama**,
+3. **rata-rata panjang kata**, dengan 2 angka di belakang koma.
+
+Jika tidak ada kata sama sekali, **cetak baris pertama saja**.
+
+**Input:** satu pita yang diakhiri `.`
+**Output:**
+```
+Jumlah kata: <n>
+Kata terpanjang: <kata>
+Rata-rata panjang: <x.xx>
+```
+
+| Input | Output |
+|---|---|
+| `aku suka makan nasi goreng.` | `Jumlah kata: 5`<br>`Kata terpanjang: goreng`<br>`Rata-rata panjang: 4.40` |
+| `  spasi di awal .` | `Jumlah kata: 3`<br>`Kata terpanjang: spasi`<br>`Rata-rata panjang: 3.67` |
+| `.` | `Jumlah kata: 0` |
+| `abc de fgh.` | `Jumlah kata: 3`<br>`Kata terpanjang: abc`<br>`Rata-rata panjang: 2.67` |
+
+### Pembahasan
+
+Ini soal pertama yang memakai **mesin kata**. Pola loop-nya sama dengan mesin karakter, tapi satuannya kata:
+
+```c
+STARTWORD();
+while (!EndWord) {
+    /* proses currentWord */
+    ADVWORD();
+}
+```
+
+Ada tiga hal yang dikumpulkan dalam **satu** traversal: jumlah kata, total panjang, dan kata terpanjang.
+
+```c
+int main() {
+    int count = 0, totalLen = 0;
+    Word longest;
+    longest.Length = 0;                      /* belum ada kata, panjang 0 */
+    STARTWORD();
+    while (!EndWord) {
+        count++;
+        totalLen += currentWord.Length;
+        if (currentWord.Length > longest.Length) {   /* > bukan >= */
+            longest = currentWord;           /* salin seluruh struct */
+        }
+        ADVWORD();
+    }
+    printf("Jumlah kata: %d\n", count);
+    if (count > 0) {
+        printf("Kata terpanjang: ");
+        printWord(longest);
+        printf("\n");
+        printf("Rata-rata panjang: %.2f\n", (float) totalLen / count);
+    }
+    return 0;
+}
+```
+
+Empat detail penting:
+
+1. **`>` bukan `>=`.** Soal minta kata terpanjang yang muncul **pertama** jika seri. Dengan `>`, kata berikutnya yang panjangnya sama tidak menggantikan kata pertama. Contoh `abc de fgh.`: `abc` (3) disimpan, lalu `fgh` (3) tidak menggantikannya karena `3 > 3` bernilai false.
+
+2. **`longest = currentWord` menyalin seluruh isi struct**, termasuk array `TabWord`. Di C, assignment struct menyalin semua field. Penyalinan ini **wajib**, karena `currentWord` akan ditimpa oleh `ADVWORD()` berikutnya.
+
+3. **`(float) totalLen / count`.** Tanpa cast, `totalLen / count` adalah pembagian bilangan bulat: `22 / 5 = 4`, bukan `4.40`. Cast ke `float` harus dilakukan **sebelum** pembagian.
+
+4. **`if (count > 0)`.** Ini mencegah pembagian dengan nol pada pita kosong, dan sekaligus memenuhi aturan "cetak baris pertama saja".
+
+**Kenapa memakai `printWord`, bukan `printf("%s", ...)`?** `TabWord` **tidak diakhiri `'\0'`**, jadi `%s` akan terus mencetak sampah memori sampai kebetulan menemukan byte nol. `printWord` mencetak tepat `Length` karakter:
+
+```c
+void printWord(Word w) {
+    for (int i = 0; i < w.Length; i++) {
+        printf("%c", w.TabWord[i]);
+    }
+}
+```
+
+**Contoh kedua (spasi di awal):** `STARTWORD` memanggil `IgnoreBlanks` lebih dulu, jadi spasi di awal pita dan spasi sebelum `.` tidak menghasilkan kata kosong. Kata-katanya `spasi` (5), `di` (2), `awal` (4), sehingga rata-ratanya 11/3 = 3.67.
+
+---
+
+# K3: Balik tiap kata
+
+### Soal
+
+Diberikan sebuah pita berisi kata-kata, diakhiri MARK. Cetak setiap kata dengan **urutan hurufnya dibalik**, tapi **urutan katanya tetap**. Pisahkan kata dengan **tepat satu spasi**, walaupun di input jarak antarkatanya lebih dari satu spasi. Akhiri output dengan newline.
+
+| Input | Output |
+|---|---|
+| `halo dunia kita.` | `olah ainud atik` |
+| `a bc .` | `a cb` |
+| `  ITB   keren.` | `BTI nerek` |
+| `.` | *(baris kosong)* |
+
+### Pembahasan
+
+**Membalik satu kata itu mudah**, karena `currentWord` sudah tersimpan lengkap di array. Cukup cetak dari indeks terakhir ke indeks pertama:
+
+```c
+for (int i = currentWord.Length - 1; i >= 0; i--) {
+    printf("%c", currentWord.TabWord[i]);
+}
+```
+
+Ini kelebihan mesin kata dibanding mesin karakter. Dengan mesin karakter, kamu tidak bisa membalik apa pun karena karakter yang sudah lewat tidak bisa dilihat lagi. Mesin kata menyimpan satu kata utuh di `TabWord`, jadi di dalam satu kata kamu bebas mengakses indeks mana saja.
+
+**Bagian yang lebih sulit adalah spasinya.** Output harus `olah ainud atik`, tanpa spasi di awal maupun di akhir. Ada dua pilihan:
+- cetak spasi **setelah** setiap kata: akan ada spasi berlebih di akhir ✘
+- cetak spasi **sebelum** setiap kata **kecuali kata pertama** ✔
+
+```c
+int main() {
+    boolean first = true;
+    STARTWORD();
+    while (!EndWord) {
+        if (!first) {
+            printf(" ");                 /* spasi pemisah, kecuali sebelum kata pertama */
+        }
+        for (int i = currentWord.Length - 1; i >= 0; i--) {
+            printf("%c", currentWord.TabWord[i]);
+        }
+        first = false;
+        ADVWORD();
+    }
+    printf("\n");
+    return 0;
+}
+```
+
+**Kenapa ini penting?** Output diperiksa secara otomatis dan harus sama persis. Spasi di akhir baris bisa membuat jawaban dinilai salah (WA).
+
+**Spasi ganda di input** (`  ITB   keren.`) tidak perlu ditangani secara khusus. `IgnoreBlanks` di mesin kata sudah melewati semua spasi, dan program hanya mencetak satu spasi di antara kata.
+
+---
+
+# K4: Frekuensi kata target
+
+### Soal
+
+Diberikan sebuah pita berisi kata-kata, diakhiri MARK. **Kata pertama adalah kata target.** Hitung berapa kali kata target muncul **di sisa kalimat**, yaitu kata kedua sampai terakhir. Kata dianggap sama hanya jika **sama persis** (panjang dan semua hurufnya sama). Jika pita kosong, cetak `0`.
+
+**Output:** satu bilangan bulat, diikuti newline.
+
+| Input | Output | Penjelasan |
+|---|---|---|
+| `ab ab cd ab abc.` | `2` | target `ab`. Sisanya: `ab` ✔, `cd`, `ab` ✔, `abc` ✘ (lebih panjang) |
+| `ab.` | `0` | hanya ada target, sisanya kosong |
+| `.` | `0` | pita kosong |
+| `x y x x z.` | `2` | |
+
+### Pembahasan
+
+Soal ini menggabungkan tiga hal: **menangani kasus khusus kata pertama**, **menyimpan salinan**, dan **membandingkan kata**.
+
+```c
+int main() {
+    STARTWORD();
+    if (EndWord) {                    /* pita kosong: tidak ada target */
+        printf("0\n");
+        return 0;
+    }
+    Word target = currentWord;        /* SALIN kata pertama */
+    int count = 0;
+    ADVWORD();                        /* lewati target, mulai dari kata kedua */
+    while (!EndWord) {
+        if (isWordEqual(currentWord, target)) {
+            count++;
+        }
+        ADVWORD();
+    }
+    printf("%d\n", count);
+    return 0;
+}
+```
+
+**1. Kenapa ada `if (EndWord)` sebelum loop?** Pada pita kosong, tidak ada kata pertama yang bisa dijadikan target. Tanpa pengecekan ini, `target` berisi data yang tidak bermakna.
+
+**2. Kenapa `target` harus disalin?** `currentWord` adalah **satu variabel global** milik mesin kata. Setiap `ADVWORD()` **menimpa** isinya. Kalau kamu hanya "mengingat" `currentWord`, target ikut berubah. `Word target = currentWord;` menyalin isinya ke variabel lokal yang tidak akan diubah mesin.
+
+**3. Kenapa `ADVWORD()` dipanggil sekali sebelum loop?** Soal minta menghitung di **sisa** kalimat. Kalau tidak dilewati, target akan menghitung dirinya sendiri, dan `ab ab cd ab abc.` menghasilkan 3, bukan 2.
+
+**4. Kenapa tidak memakai `strcmp`?** Karena `TabWord` tidak diakhiri `'\0'`. Bandingkan secara manual:
+
+```c
+boolean isWordEqual(Word a, Word b) {
+    if (a.Length != b.Length) {
+        return false;                 /* beda panjang pasti beda: ab ≠ abc */
+    }
+    for (int i = 0; i < a.Length; i++) {
+        if (a.TabWord[i] != b.TabWord[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+```
+
+Pengecekan panjang di awal adalah yang membuat `abc` tidak dianggap sama dengan `ab`. Kalau hanya membandingkan sebanyak `a.Length` huruf, `ab` dan `abc` akan dianggap sama, dan itu salah.
+
+---
+
+# K5: Angka terurut (mesin kata + list)
+
+### Soal
+
+Diberikan sebuah pita berisi bilangan bulat (boleh negatif) yang dipisahkan spasi, diakhiri MARK. Baca setiap bilangan dengan mesin kata, lalu **sisipkan ke dalam list berkait sehingga list selalu terurut menaik**. Setelah semua dibaca:
+1. cetak list dengan format `[a,b,c]` (tanpa spasi, list kosong ditulis `[]`),
+2. cetak jumlah semua elemen di baris berikutnya.
+
+Bebaskan semua memori list di akhir program.
+
+| Input | Output |
+|---|---|
+| `5 -3 10 0 2.` | `[-3,0,2,5,10]`<br>`14` |
+| `7 7 -1.` | `[-1,7,7]`<br>`13` |
+| `.` | `[]`<br>`0` |
+
+### Pembahasan
+
+Ini soal penghubung antara dua materi. **Mesin kata membaca** input yang banyaknya tidak diketahui, dan **list menyimpan** hasilnya.
+
+**Langkah 1: mengubah `Word` menjadi `int`.** Mesin kata hanya memberi deret karakter, misalnya `'-'`, `'3'`. Kamu harus mengubahnya sendiri menjadi angka `-3`:
+
+```c
+int wordToInt(Word w) {
+    int i = 0, sign = 1, val = 0;
+    if (w.Length > 0 && w.TabWord[0] == '-') {
+        sign = -1;                            /* catat tanda negatif */
+        i = 1;                                /* mulai dari digit setelah '-' */
+    }
+    for (; i < w.Length; i++) {
+        val = val * 10 + (w.TabWord[i] - '0');
+    }
+    return sign * val;
+}
+```
+
+Dua trik di sini:
+- **`w.TabWord[i] - '0'`** mengubah karakter digit menjadi angka. Digit `'0'` sampai `'9'` berurutan di ASCII, jadi `'7' - '0'` = `7`.
+- **`val = val * 10 + digit`** membangun angka dari kiri ke kanan. Contoh untuk `"105"`:
+
+| digit | `val` |
+|---|---|
+| `1` | 0 × 10 + 1 = 1 |
+| `0` | 1 × 10 + 0 = 10 |
+| `5` | 10 × 10 + 5 = 105 |
+
+**Langkah 2: program utama.**
+
+```c
+int main() {
+    List l;
+    CreateList(&l);
+    STARTWORD();
+    while (!EndWord) {
+        insertSorted(&l, wordToInt(currentWord));   /* sisip di posisi yang benar */
+        ADVWORD();
+    }
+    int sum = 0;
+    for (Address p = FIRST(l); p != NULL; p = NEXT(p)) {   /* traversal list */
+        sum += INFO(p);
+    }
+    displayList(l);
+    printf("\n%d\n", sum);
+    freeList(&l);                                    /* kembalikan semua memori */
+    return 0;
+}
+```
+
+Perhatikan bahwa ada **dua loop sekuensial** dengan pola yang sama: loop mesin kata (`STARTWORD` / `!EndWord` / `ADVWORD`) dan loop traversal list (`FIRST` / `!= NULL` / `NEXT`).
+
+**Kenapa disimpan di list, bukan langsung diproses?** Mengurutkan butuh **semua** angka. Kamu tidak bisa tahu angka terkecil sebelum seluruh pita dibaca, dan pita tidak bisa dibaca dua kali. Banyaknya angka juga tidak diketahui sejak awal, jadi list yang bisa terus bertambah lebih cocok daripada array berukuran tetap.
+
+**Perhatikan `displayList` dan newline.** Di dokumen persiapan, `displayList` mencetak `[...]` **tanpa** newline. Karena itu `printf("\n%d\n", sum)` diawali `\n`, untuk pindah baris setelah list dicetak.
+
+**`insertSorted` dan `freeList`** dibahas di latihan list (L6 dan L1). Isinya akan kita bahas saat masuk materi linked list. Untuk sekarang, cukup pahami kontraknya:
+- `insertSorted(&l, x)` menyisipkan `x` sehingga list tetap terurut menaik,
+- `freeList(&l)` membebaskan semua node dan membuat `l` menjadi kosong.
+
+---
+
+## Pola umum dari keenam soal
+
+| Soal | Mesin | Teknik kunci |
+|---|---|---|
+| K0 | karakter | simpan karakter sebelumnya (`prev`) |
+| K1 | karakter | beberapa penghitung dalam satu traversal |
+| K2 | kata | simpan salinan kata terbaik (`longest`), cast `float`, cegah bagi nol |
+| K3 | kata | akses `TabWord` secara terbalik, spasi pemisah dengan flag `first` |
+| K4 | kata | tangani kata pertama di luar loop, salin `target`, bandingkan kata secara manual |
+| K5 | kata + list | ubah kata jadi angka, simpan ke list karena butuh semua data |
+
+Kasus tepi yang **selalu** perlu dites: pita kosong (`.`), satu elemen saja, dan spasi berlebih (di awal, di akhir, atau di antara kata).
+
+Saran urutan latihan: K0 dan K2 tercantum di checklist hari-H dokumen persiapan, jadi kerjakan keduanya dulu tanpa melihat pembahasan ini. Kalau mau dicek, tempel kodenya ke sini.
